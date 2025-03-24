@@ -1,0 +1,19 @@
+# Node.js dependencies
+node_modules/
+
+# Logs
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+
+# macOS files
+.DS_Store
+
+# Build directories
+dist/
+build/
+
+# Coverage directory
+coverage/
