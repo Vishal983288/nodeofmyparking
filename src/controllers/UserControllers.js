@@ -4,42 +4,44 @@ const mailUtil = require('../utils/MailUtils')
 const jwt = require('jsonwebtoken')
 const secret = 'secret'
 
+const loginUser = async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-    const loginUser = async (req,res)=>{
+        // Find user by email and populate roleId
+        const foundUser = await userModel.findOne({ email }).populate("roleId");
+        console.log("Found User:", foundUser);
 
-        const email = req.body.email;
-        const password = req.body.password;
-
-
-        const foundUserFromEmail = await userModel.findOne({email: email}).populate("roleId")
-        console.log(foundUserFromEmail);
-
-        if(foundUserFromEmail != null){
-
-            const isMatch = bcrypt.compareSync(password, foundUserFromEmail.password);
-
-            if(isMatch== true){
-                res.status(200).json({
-                        
-                    message:'login success',
-                    data:{
-                        email:foundUserFromEmail.email,
-                        password:foundUserFromEmail.password,
-                        roleId: foundUserFromEmail.roleId
-                    }
-                  
-                })
-            }else{
-                res.status(404).json({
-                    message:'invalid cred'
-                })
-            }
-        }else{
-            res.status(404).json({
-                message:'Email not found..'
-            })
+        if (!foundUser) {
+            return res.status(404).json({ message: "Email not found." });
         }
+
+        // Check if password matches
+        const isMatch = await bcrypt.compare(password, foundUser.password);
+
+        if (!isMatch) {
+            return res.status(401).json({ message: "Invalid credentials." });
+        }
+
+        // Return only necessary user data (Exclude password)
+        return res.status(200).json({
+            message: "Login success",
+            data: {
+                _id: foundUser._id, 
+                email: foundUser.email,
+                roleId: foundUser.roleId, // Role information
+                firstname: foundUser.firstname,
+                lastname: foundUser.lastname
+            }
+        });
+    } catch (error) {
+        console.error("Login Error:", error);
+        return res.status(500).json({ message: "Server error. Please try again." });
     }
+};
+
+module.exports = { loginUser };
+
 
 const signUp = async (req, res) => {
 
@@ -51,7 +53,7 @@ const signUp = async (req, res) => {
             
             console.log(req.body)
         const createUser = await userModel.create(req.body);
-        await mailUtil.sendingmail(createUser.email,"welcome to My parking",`Hellow ${createUser.firstname}`)
+        // await mailUtil.sendingmail(createUser.email,"welcome to My parking",`Hellow ${createUser.firstname}`)
 
         res.status(201).json({
             message: "user created..",
@@ -70,6 +72,8 @@ const signUp = async (req, res) => {
 
 
 const getAllUsers = async (req, res) => {
+    console.log('Fetching all users..')
+    try{
 
     const users = await userModel.find().populate("roleId");
     console.log(users);
@@ -77,6 +81,9 @@ const getAllUsers = async (req, res) => {
         message: "User fetched successfully",
         data: users
     });
+} catch(err){
+        res.status(500).json({message:'Server error',error:err})
+}
 }
 
 const addUser = async (req, res) => {
@@ -98,14 +105,23 @@ const deleteUser = async (req, res) => {
     });
 }
 const getUserById = async (req, res) => {
+    try {
+        const foundUser = await userModel.findById(req.params.id);
 
-    const foundUser = await userModel.findById(req.params.id)
+        if (!foundUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
-    res.json({
-        message: 'User fetched...',
-        data: foundUser
-    });
-}
+        res.json({
+            message: 'User fetched successfully',
+            data: foundUser
+        });
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ message: 'Server error while fetching user' });
+    }
+};
+
 const forgotPassword = async (req, res) => {
     const email = req.body.email;
     const foundUser = await userModel.findOne({ email: email });
@@ -113,11 +129,11 @@ const forgotPassword = async (req, res) => {
     if (foundUser) {
       const token = jwt.sign(foundUser.toObject(), secret);
       console.log(token);
-      const url = `http://localhost:5173/resetpassword/${token}`;
+      const url = `http://localhost:3000/resetpassword/${token}`;
       const mailContent = `<html>
                             <a href ="${url}">rest password</a>
                             </html>`;
-      //email...
+     
       await mailUtil.sendingMail(foundUser.email, "reset password", mailContent);
       res.json({
         message: "reset password link sent to mail.",
@@ -130,7 +146,7 @@ const forgotPassword = async (req, res) => {
   };
   
   const resetpassword = async (req, res) => {
-    const token = req.body.token; //decode --> email | id
+    const token = req.body.token;
     const newPassword = req.body.password;
   
     const userFromToken = jwt.verify(token, secret);

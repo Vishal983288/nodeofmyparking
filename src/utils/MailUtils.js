@@ -7,12 +7,12 @@ const sendingmail = async (to,subject,text)=>{
 
         service: 'gmail',
         auth:{
-            user:'mmj983621@gmail.com',
-            pass:'movx alto byxa lgvz'
+            user:'shiyalv10@gmail.com',
+            pass:'oqji ehul thvs fodx'
         }
     })
     const mailOption = {
-        from:'mmj983621@gmail.com',
+        from:'shiyalv10@gmail.com',
         to:to,
         subject: subject ,
         text:"You are sucsessfully SignUp in My Parking",
